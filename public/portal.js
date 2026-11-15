@@ -28,6 +28,10 @@
     created: ['اتفتح', 'Opened'], updated: ['آخر تحديث', 'Updated'], notFound: ['الرابط غير صحيح أو الطلب مش موجود', 'This link is invalid or the request does not exist'],
     sendCode: ['ابعتلي كود الدخول', 'Send me a code'], code: ['كود الدخول (6 أرقام)', 'Sign-in code (6 digits)'], signIn: ['دخول', 'Sign in'],
     codeSent: ['لو البريد ده مسموح بيه، هيوصلك كود خلال دقيقة. شوف الـ Spam كمان.', 'If this email is allowed, a code will arrive within a minute. Check spam too.'],
+    myDevices: ['الأجهزة اللي في عهدتي', 'Devices in my custody'], noDevices: ['مفيش أجهزة مسجّلة في عهدتك', 'No devices are recorded in your custody'],
+    devSince: ['في عهدتك من', 'In your custody since'], devSerial: ['السيريال', 'Serial'], devHelp: ['لو فيه جهاز ناقص أو مش معاك، افتح طلب للـ IT.', 'If a device is missing or not with you, open a request to IT.'],
+    as_stock: ['في المخزن', 'In stock'], as_active: ['قيد الاستخدام', 'In use'], as_repair: ['في الصيانة', 'In repair'],
+    e_csat_done: ['التقييم اتسجل قبل كده ومش ممكن يتغير', 'This request was already rated; the rating cannot be changed'],
     myReqs: ['طلباتي', 'My requests'], noReqs: ['مفيش طلبات على البريد ده', 'No requests for this email'], signOut: ['خروج', 'Sign out'],
     e_v_email: ['اكتب بريد إلكتروني صحيح', 'Enter a valid email address'], e_v_title: ['العنوان قصير — 5 حروف على الأقل', 'The summary is too short — at least 5 characters'],
     e_v_req: ['اكتب اسمك', 'Enter your name'], e_v_cat: ['اختار التصنيف', 'Choose a category'], e_v_req2: ['في بيانات ناقصة أو غير صحيحة', 'Some fields are missing or invalid'],
@@ -58,7 +62,7 @@
     return j;
   }
 
-  const P = { cfg: null, view: 'home', ticket: null, token: null, mine: null, codeFor: '', created: null, files: [] };
+  const P = { cfg: null, view: 'home', ticket: null, token: null, mine: null, devices: null, codeFor: '', created: null, files: [] };
   function applyLang() { const r = document.documentElement; r.lang = lang; r.dir = lang === 'ar' ? 'rtl' : 'ltr'; document.title = t('portal') + ' — ' + t('brand'); }
   function setLang(l) { lang = l; remember('itset.portal.lang', l); render(); }
 
@@ -90,13 +94,18 @@
       <button class="btn pri" type="submit" id="pSubmit" style="justify-content:center">${t('submit')}</button></form>`;
     let trackBox;
     if (!c.mail) trackBox = `<div class="card p-card"><h2>${t('track')}</h2><p class="muted">${t('trackNoMail')}</p></div>`;
-    else if (c.signedIn) trackBox = vMine();
+    else if (c.signedIn) trackBox = vMine() + vDevices(); // DESK-GAP-001
     else trackBox = `<form class="card p-card props" id="otpForm" novalidate><div><h2>${t('track')}</h2><p class="muted">${t('trackSub')}</p></div>
       <label class="field"><span>${t('email')}</span><input type="email" id="oEmail" maxlength="120" dir="ltr" autocomplete="email" value="${esc(P.codeFor || remember('itset.portal.email'))}"></label>
       ${P.codeFor ? `<div class="note">${t('codeSent')}</div><label class="field"><span>${t('code')}</span><input type="text" id="oCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" dir="ltr" class="mono"></label>` : ''}
       <small class="ferr" id="oErr" role="alert"></small>
       <button class="btn ${P.codeFor ? 'pri' : ''}" type="submit" style="justify-content:center">${P.codeFor ? t('signIn') : t('sendCode')}</button></form>`;
     return `<div class="p-grid">${form}<div class="p-side">${trackBox}</div></div>`;
+  }
+  function vDevices() {
+    const d = P.devices;
+    return `<div class="card p-card"><h2>${t('myDevices')}</h2>${!d ? `<div class="muted">…</div>` : d.assets.length ? `<div class="kbs">${d.assets.map(x =>
+      `<div class="p-dev"><span class="mono">${esc(x.tag)}</span> ${esc(x.name)} <span class="muted">· ${esc(x.type)}${x.serial ? ' · ' + t('devSerial') + ' ' + esc(x.serial) : ''}</span><div class="muted" style="font-size:12px">${esc(t('as_' + x.status) || x.status)}${x.since ? ' · ' + t('devSince') + ' ' + esc(fmt(x.since)) : ''}</div></div>`).join('')}</div><p class="muted" style="font-size:12px">${t('devHelp')}</p>` : `<div class="muted">${t('noDevices')}</div>`}</div>`;
   }
   function vMine() {
     const m = P.mine;
@@ -117,7 +126,7 @@
       <div class="card p-card"><div class="row1"><span class="mono muted">${esc(x.key)}</span>${stChipP(x.status)}<span class="tag">${esc((x.categoryL && x.categoryL[lang]) || x.category)}</span></div>
       <h1>${esc(x.title)}</h1><div class="muted" style="font-size:13px">${t('created')} ${fmt(x.createdAt)} · ${t('updated')} ${fmt(x.updatedAt)}</div>
       ${note ? `<div class="note">${note}</div>` : ''}
-      ${x.canRate ? `<div class="p-rate"><b>${x.csat ? t('thanks') : t('rate')}</b><div class="stars">${[1, 2, 3, 4, 5].map(v => `<button data-a="rate" data-v="${v}" class="${x.csat >= v ? 'on' : ''}" aria-label="${v}">★</button>`).join('')}</div></div>` : ''}
+      ${x.canRate ? `<div class="p-rate"><b>${x.csat ? t('thanks') : t('rate')}</b><div class="stars">${[1, 2, 3, 4, 5].map(v => x.csat ? `<span class="${x.csat >= v ? 'on' : ''}" aria-label="${v}">★</span>` : `<button data-a="rate" data-v="${v}" aria-label="${v}">★</button>`).join('')}</div></div>` : ''}
       </div>
       <div class="p-thread">${msgs.map(m => `<div class="p-msg ${m.mine ? 'mine' : ''}"><div class="meta"><b>${m.mine ? t('you') : esc(m.by || t('support'))}</b><span class="num">${fmt(m.at)}</span></div><div class="tx">${esc(m.body)}</div></div>`).join('')}</div>
       ${x.attachments.length ? `<div class="card p-card"><h3>${t('files')}</h3><div class="kbs">${x.attachments.map(a => `<a class="btn sm" href="/api/portal/t/${encodeURIComponent(P.token)}/attachments/${encodeURIComponent(a.id)}" download="${esc(a.name)}">📎 ${esc(a.name)}</a>`).join('')}</div></div>` : ''}
@@ -137,7 +146,11 @@
     render();
   }
   function go(tok) { try { history.pushState(null, '', tok ? '/portal?t=' + encodeURIComponent(tok) : '/portal'); } catch (e) { /* ignore */ } if (tok) loadTicket(tok); else { P.view = 'home'; P.ticket = null; render(); if (P.cfg.signedIn) loadMine(); } }
-  async function loadMine() { try { P.mine = await api('GET', '/api/portal/mine'); } catch (e) { if (e.code === 'auth') { P.cfg.signedIn = null; } } if (P.view === 'home') render(); }
+  async function loadMine() {
+    try { P.mine = await api('GET', '/api/portal/mine'); } catch (e) { if (e.code === 'auth') { P.cfg.signedIn = null; } }
+    try { P.devices = P.cfg.signedIn ? await api('GET', '/api/portal/assets') : null; } catch (e) { P.devices = { assets: [] }; } // DESK-GAP-001
+    if (P.view === 'home') render();
+  }
   async function uploadAll(tok, files) {
     const max = P.cfg.limits.maxUploadMB * 1048576; let last = null;
     for (const f of files) {
@@ -154,7 +167,7 @@
     else if (a === 'openTok') go(el.dataset.v);
     else if (a === 'copy') { try { await navigator.clipboard.writeText(el.dataset.v); toast(t('copied')); } catch (_) { toast(el.dataset.v); } }
     else if (a === 'rate') { try { P.ticket = (await api('POST', `/api/portal/t/${encodeURIComponent(P.token)}/csat`, { v: +el.dataset.v })).ticket; render(); toast(t('thanks')); } catch (err) { toast(errMsg(err.code), true); } }
-    else if (a === 'signout') { try { await api('POST', '/api/portal/logout'); } catch (_) { /* ignore */ } P.cfg.signedIn = null; P.mine = null; P.codeFor = ''; render(); }
+    else if (a === 'signout') { try { await api('POST', '/api/portal/logout'); } catch (_) { /* ignore */ } P.cfg.signedIn = null; P.mine = null; P.devices = null; P.codeFor = ''; render(); }
   });
   document.addEventListener('submit', async e => {
     e.preventDefault(); const f = e.target;

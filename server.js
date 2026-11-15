@@ -869,6 +869,23 @@ route('GET', '/api/portal/mine', 'none', (ctx) => {
   return { email, tickets: list };
 });
 
+/* DESK-GAP-001 — "My devices": assets in the signed-in employee's custody (ISO/IEC 27001 A.5.9 / A.5.11).
+   Ownership check: only assets whose requesterId belongs to a requester record with the SAME e-mail as the
+   portal session (verified by one-time code). No ids from the client are trusted. Only safe fields leave the server. */
+const CUSTODY_HIDDEN = new Set(['disposed', 'retired']);
+function custodySince(a) {
+  const h = (a.history || []).filter(e => e.k === 'owner'); return h.length ? h[h.length - 1].at : (a.createdAt || null);
+}
+route('GET', '/api/portal/assets', 'none', (ctx) => {
+  portalGuard(); const email = portalUser(ctx.req); if (!email) throw httpErr(401, 'auth');
+  rateGuard('pas:' + email, 60, 3600e3);
+  const ids = new Set(S.requesters.filter(r => r.email && r.email === email).map(r => r.id));
+  const assets = S.assets.filter(a => a.requesterId && ids.has(a.requesterId) && !CUSTODY_HIDDEN.has(a.status))
+    .sort((a, b) => String(a.tag).localeCompare(String(b.tag))).slice(0, 200)
+    .map(a => ({ tag: a.tag, name: a.name, type: a.type, serial: a.serial || '', status: a.status, location: a.location || '', since: custodySince(a) }));
+  return { email, assets };
+});
+
 /* ======================= audit log (admin) ======================= */
 route('GET', '/api/audit', 'admin', (ctx) => {
   const sp = ctx.url.searchParams; const lim = Math.min(500, Math.max(1, +(sp.get('limit') || 200)));
