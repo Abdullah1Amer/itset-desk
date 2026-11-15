@@ -1,0 +1,44 @@
+<!-- Evaluation for itset-desk-mcp-server against an IT Set Desk set up in ENGLISH with demo data.
+     Read-only questions; answers do not depend on the current date. -->
+<evaluation>
+  <qa_pair>
+    <question>The printer that belongs to the HR department is currently out of service. What is its serial number?</question>
+    <answer>VNB3K12345</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>There is an open change ticket about upgrading FortiOS. Which asset tag is it linked to?</question>
+    <answer>FW-01</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The device that is the subject of the FortiOS upgrade change has its own preventive maintenance plan. Every how many days does that plan repeat?</question>
+    <answer>30</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>How many checklist steps does the preventive maintenance plan for the firewall contain?</question>
+    <answer>4</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which agent is assigned to the plan that tests restoring the file server backup?</question>
+    <answer>Karim Adel</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which team handles tickets in the category used for warehouse camera problems?</question>
+    <answer>Network &amp; Infrastructure</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>A ticket reports that Outlook does not sync a shared mailbox. Which department did the requester come from?</question>
+    <answer>Customer Service</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which company made the network video recorder whose warranty has already expired?</question>
+    <answer>Hikvision</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>One desktop computer was disposed of after being replaced by LAP-0012. What disposal method was recorded for it?</question>
+    <answer>recycled</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The knowledge base has an article on handling a reported phishing email. How many numbered steps does it have?</question>
+    <answer>5</answer>
+  </qa_pair>
+</evaluation>

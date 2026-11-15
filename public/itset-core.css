@@ -1,0 +1,98 @@
+/*! IT Set — shared design tokens (itset-core) — © 2026 Abdullah Amer.
+ * Visual language based on the IBM Carbon Design System (Apache-2.0): theme values taken from
+ * @carbon/themes 11.84.0 and @carbon/colors 11.61.0, with the IT Set teal as the brand/interactive colour.
+ * Themes: light (Carbon Gray 10, default) · white · g90 · dark (Carbon Gray 100). "system" follows the OS.
+ * Every IT Set tool uses these semantic tokens; components never use raw hex values. */
+:root{
+  /* type: IBM Plex Sans for Latin, IBM Plex Sans Arabic for Arabic (per-glyph fallback), Plex Mono for codes */
+  --font-sans:"IBM Plex Sans","IBM Plex Sans Arabic",system-ui,"Segoe UI",Tahoma,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --f-ui:var(--font-sans); --f-mono:var(--font-mono);
+  /* Carbon spacing scale (2x grid) */
+  --sp-1:2px; --sp-2:4px; --sp-3:8px; --sp-4:12px; --sp-5:16px; --sp-6:24px; --sp-7:32px; --sp-8:40px; --sp-9:48px;
+  /* shape: Carbon is square; tags and toggles are pills */
+  --r:0px; --r-sm:2px; --r-pill:24px;
+  /* control heights */
+  --h-sm:32px; --h-md:40px; --h-lg:48px;
+  --ease:cubic-bezier(.2,0,.38,.9); --dur:110ms;
+  --shadow:0 2px 6px rgba(0,0,0,.3);
+  --scrim:rgba(22,22,22,.5);
+}
+
+/* ---------- Gray 10 (default light) ---------- */
+:root,:root[data-theme="light"]{
+  --bg:#f4f4f4; --surface:#ffffff; --surface-2:#f4f4f4; --hover:#e8e8e8; --selected:#e0e0e0; --layer-accent:#e0e0e0;
+  --line:#e0e0e0; --line-strong:#8d8d8d; --field:#f4f4f4;
+  --fg:#161616; --muted:#525252; --helper:#6f6f6f; --placeholder:rgba(22,22,22,.4); --disabled:rgba(22,22,22,.25);
+  --inverse:#393939; --inverse-fg:#f4f4f4;
+  --accent:#006b71; --accent-fg:#ffffff; --accent-soft:#d9fbfb; --btn-pri:#006b71; --btn-pri-hover:#005a5f; --focus:#006b71;
+  --btn-danger:#da1e28; --btn-danger-hover:#b81921;
+  --crit:#da1e28; --crit-soft:#fff1f1; --warn:#ba4e00; --warn-soft:#fff2e8; --ok:#198038; --ok-soft:#defbe6;
+  --info:#0043ce; --info-soft:#edf5ff; --pend:#6929c4; --pend-soft:#f6f2ff;
+  /* Carbon tags (palette 20 background / 70 text) */
+  --tg-red-bg:#ffd7d9; --tg-red:#a2191f; --tg-orange-bg:#ffd9be; --tg-orange:#8a3800; --tg-blue-bg:#d0e2ff; --tg-blue:#0043ce;
+  --tg-teal-bg:#9ef0f0; --tg-teal:#005d5d; --tg-purple-bg:#e8daff; --tg-purple:#6929c4; --tg-green-bg:#a7f0ba; --tg-green:#0e6027;
+  --tg-gray-bg:#e0e0e0; --tg-gray:#393939;
+  color-scheme:light;
+}
+/* ---------- White ---------- */
+:root[data-theme="white"]{
+  --bg:#ffffff; --surface:#f4f4f4; --surface-2:#ffffff; --hover:#e8e8e8; --selected:#e0e0e0; --layer-accent:#e0e0e0;
+  --line:#c6c6c6; --line-strong:#8d8d8d; --field:#ffffff;
+  --fg:#161616; --muted:#525252; --helper:#6f6f6f; --placeholder:rgba(22,22,22,.4); --disabled:rgba(22,22,22,.25);
+  --inverse:#393939; --inverse-fg:#f4f4f4;
+  --accent:#006b71; --accent-fg:#ffffff; --accent-soft:#d9fbfb; --btn-pri:#006b71; --btn-pri-hover:#005a5f; --focus:#006b71;
+  --btn-danger:#da1e28; --btn-danger-hover:#b81921;
+  --crit:#da1e28; --crit-soft:#fff1f1; --warn:#ba4e00; --warn-soft:#fff2e8; --ok:#198038; --ok-soft:#defbe6;
+  --info:#0043ce; --info-soft:#edf5ff; --pend:#6929c4; --pend-soft:#f6f2ff;
+  --tg-red-bg:#ffd7d9; --tg-red:#a2191f; --tg-orange-bg:#ffd9be; --tg-orange:#8a3800; --tg-blue-bg:#d0e2ff; --tg-blue:#0043ce;
+  --tg-teal-bg:#9ef0f0; --tg-teal:#005d5d; --tg-purple-bg:#e8daff; --tg-purple:#6929c4; --tg-green-bg:#a7f0ba; --tg-green:#0e6027;
+  --tg-gray-bg:#e0e0e0; --tg-gray:#393939;
+  color-scheme:light;
+}
+/* ---------- dark values shared by Gray 90 and Gray 100 ---------- */
+:root[data-theme="g90"],:root[data-theme="dark"]{
+  --placeholder:rgba(244,244,244,.4); --disabled:rgba(244,244,244,.25);
+  --inverse:#f4f4f4; --inverse-fg:#161616;
+  --accent:#77d4cb; --accent-fg:#ffffff; --accent-soft:#022b30; --btn-pri:#007d79; --btn-pri-hover:#006b71; --focus:#ffffff;
+  --btn-danger:#da1e28; --btn-danger-hover:#b81921;
+  --warn:#ff832b; --warn-soft:#3e1a00; --ok:#42be65; --ok-soft:#022d0d;
+  --info:#78a9ff; --info-soft:#001d6c; --pend:#be95ff; --pend-soft:#31135e;
+  /* Carbon dark tags (palette 70 background / 20 text) */
+  --tg-red-bg:#a2191f; --tg-red:#ffd7d9; --tg-orange-bg:#8a3800; --tg-orange:#ffd9be; --tg-blue-bg:#0043ce; --tg-blue:#d0e2ff;
+  --tg-teal-bg:#005d5d; --tg-teal:#9ef0f0; --tg-purple-bg:#6929c4; --tg-purple:#e8daff; --tg-green-bg:#0e6027; --tg-green:#a7f0ba;
+  --tg-gray-bg:#525252; --tg-gray:#f4f4f4;
+  --shadow:0 2px 6px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+/* ---------- Gray 90 ---------- */
+:root[data-theme="g90"]{
+  --bg:#262626; --surface:#393939; --surface-2:#525252; --hover:#474747; --selected:#525252; --layer-accent:#525252;
+  --line:#525252; --line-strong:#8d8d8d; --field:#525252;
+  --fg:#f4f4f4; --muted:#c6c6c6; --helper:#c6c6c6;
+  --crit:#ff8389; --crit-soft:#520408;
+}
+/* ---------- Gray 100 (dark) ---------- */
+:root[data-theme="dark"]{
+  --bg:#161616; --surface:#262626; --surface-2:#393939; --hover:#333333; --selected:#393939; --layer-accent:#393939;
+  --line:#393939; --line-strong:#6f6f6f; --field:#393939;
+  --fg:#f4f4f4; --muted:#c6c6c6; --helper:#a8a8a8;
+  --crit:#fa4d56; --crit-soft:#520408;
+}
+/* ---------- "system": no data-theme → follow the OS (Gray 10 / Gray 100) ---------- */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme]){
+    --bg:#161616; --surface:#262626; --surface-2:#393939; --hover:#333333; --selected:#393939; --layer-accent:#393939;
+    --line:#393939; --line-strong:#6f6f6f; --field:#393939;
+    --fg:#f4f4f4; --muted:#c6c6c6; --helper:#a8a8a8; --placeholder:rgba(244,244,244,.4); --disabled:rgba(244,244,244,.25);
+    --inverse:#f4f4f4; --inverse-fg:#161616;
+    --accent:#77d4cb; --accent-fg:#ffffff; --accent-soft:#022b30; --btn-pri:#007d79; --btn-pri-hover:#006b71; --focus:#ffffff;
+    --crit:#fa4d56; --crit-soft:#520408; --warn:#ff832b; --warn-soft:#3e1a00; --ok:#42be65; --ok-soft:#022d0d;
+    --info:#78a9ff; --info-soft:#001d6c; --pend:#be95ff; --pend-soft:#31135e;
+    --tg-red-bg:#a2191f; --tg-red:#ffd7d9; --tg-orange-bg:#8a3800; --tg-orange:#ffd9be; --tg-blue-bg:#0043ce; --tg-blue:#d0e2ff;
+    --tg-teal-bg:#005d5d; --tg-teal:#9ef0f0; --tg-purple-bg:#6929c4; --tg-purple:#e8daff; --tg-green-bg:#0e6027; --tg-green:#a7f0ba;
+    --tg-gray-bg:#525252; --tg-gray:#f4f4f4;
+    --shadow:0 2px 6px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}

@@ -1,0 +1,39 @@
+# Remote access through Cloudflare Tunnel — use together with docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d
+#
+# - The LAN port stays open, so the team can still work inside the office when the internet is down.
+# - Only the cloudflared container (fixed IP below) is trusted to send forwarded headers;
+#   the same headers sent by anyone on the LAN are ignored.
+# - If 172.30.10.0/24 clashes with an existing network of yours, change the subnet and both IPs.
+services:
+  servicedesk:
+    environment:
+      TRUSTED_PROXIES: "172.30.10.10"
+      REAL_IP_HEADER: "cf-connecting-ip"
+    networks:
+      itset-net:
+        ipv4_address: 172.30.10.5
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3
+    container_name: itset-cloudflared
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "${CF_TUNNEL_TOKEN:?Set CF_TUNNEL_TOKEN in .env}"
+    restart: unless-stopped
+    depends_on:
+      - servicedesk
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      itset-net:
+        ipv4_address: 172.30.10.10
+
+networks:
+  itset-net:
+    ipam:
+      config:
+        - subnet: 172.30.10.0/24

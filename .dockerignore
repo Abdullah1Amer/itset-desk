@@ -1,0 +1,9 @@
+.git
+data
+*.md
+*.zip
+node_modules
+tests
+dist
+
+mcp

@@ -1,0 +1,35 @@
+{
+  "name": "itset-desk-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for IT Set Desk \u2014 lets Claude and other MCP clients read and work on tickets, assets and maintenance plans",
+  "license": "SEE LICENSE IN ../LICENSE",
+  "author": "Abdullah Amer <abdo11amer@gmail.com>",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "itset-desk-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-core.mjs",
+    "start": "node dist/index.js",
+    "smoke": "node scripts/smoke.mjs",
+    "bundle": "npm run build && esbuild dist/index.js --bundle --platform=node --format=esm --target=node20 --external:./core.cjs --outfile=bundle/itset-desk-mcp.mjs --banner:js=\"import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);\" && node scripts/copy-core.mjs bundle",
+    "smoke:bundle": "node scripts/smoke.mjs bundle"
+  },
+  "engines": {
+    "node": ">=20.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.4.0",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.9.3"
+  }
+}

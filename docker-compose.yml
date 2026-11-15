@@ -1,0 +1,60 @@
+services:
+  servicedesk:
+    build: .
+    image: itset/desk:3.4.0
+    container_name: itset-servicedesk
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+    environment:
+      # licensed organization name, shown on the sign-in screen and the About page
+      LICENSEE: "${LICENSEE:-}"
+      # auto = Secure cookie only for requests that arrived over HTTPS through a trusted proxy
+      COOKIE_SECURE: "${COOKIE_SECURE:-auto}"
+      # IPs/CIDRs of reverse proxies allowed to send X-Forwarded-* headers (empty = trust none)
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-}"
+      # optional fixed first-run code instead of the random one printed in the log
+      SETUP_TOKEN: "${SETUP_TOKEN:-}"
+      # how long a login stays valid
+      SESSION_HOURS: "${SESSION_HOURS:-12}"
+      # backups kept per kind (manual / auto / preimport)
+      KEEP_BACKUPS: "${KEEP_BACKUPS:-14}"
+      # automatic backup interval in hours (0 = off)
+      AUTO_BACKUP_HOURS: "${AUTO_BACKUP_HOURS:-24}"
+      # days a deleted item stays in the trash before permanent removal (0 = keep forever)
+      TRASH_DAYS: "${TRASH_DAYS:-30}"
+      # max size of one attachment in MB
+      MAX_UPLOAD_MB: "${MAX_UPLOAD_MB:-15}"
+      # public address of the app — used for ticket links in emails (e.g. https://helpdesk.company.com)
+      APP_URL: "${APP_URL:-}"
+      # email notifications (leave SMTP_HOST empty to disable)
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-}"
+      SMTP_SECURE: "${SMTP_SECURE:-starttls}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASS: "${SMTP_PASS:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      SMTP_TLS_INSECURE: "${SMTP_TLS_INSECURE:-false}"
+      # days to keep the audit log (0 = forever)
+      AUDIT_DAYS: "${AUDIT_DAYS:-365}"
+    volumes:
+      - itset-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  itset-data:
