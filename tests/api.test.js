@@ -486,3 +486,49 @@ test('data survives a restart, and the startup integrity check passes', async ()
   const c = client(); await c.post('/api/login', ADMIN);
   assert.equal((await c.get('/api/bootstrap')).body.state.tickets.length, before);
 });
+
+/* ---- regression tests for DESK-BUG-001, DESK-BUG-002, DESK-GAP-001 (branch claude/desk-fixes-sla-csat-custody) ---- */
+test('DESK-BUG-001: first response is set only by an agent public reply', async () => {
+  const st = (await admin.get('/api/bootstrap')).body.state; const catId = st.categories[0].id;
+  const x = (await admin.post('/api/tickets', { title: 'First response rule check', type: 'incident', categoryId: catId, impact: 3, urgency: 3, requester: { name: 'Rule Check' } })).body.ticket;
+  let t = (await admin.post(`/api/tickets/${x.id}/ops`, { ops: [{ op: 'set', key: 'status', value: 'progress' }] })).body.tickets[0];
+  assert.equal(t.firstResponseAt, null, 'status change is not a response');
+  t = (await admin.post(`/api/tickets/${x.id}/ops`, { ops: [{ op: 'comment', kind: 'internal', body: 'internal only' }] })).body.tickets[0];
+  assert.equal(t.firstResponseAt, null, 'internal note is not a response');
+  t = (await admin.post(`/api/tickets/${x.id}/ops`, { ops: [{ op: 'comment', kind: 'requester', body: 'logged on behalf of requester' }] })).body.tickets[0];
+  assert.equal(t.firstResponseAt, null, 'requester message is not a response');
+  t = (await admin.post(`/api/tickets/${x.id}/ops`, { ops: [{ op: 'comment', kind: 'reply', body: 'public reply' }] })).body.tickets[0];
+  assert.ok(t.firstResponseAt, 'public reply by an agent sets first response');
+});
+
+test('DESK-BUG-002: portal CSAT is accepted once; a second rating is rejected and the first is kept', async () => {
+  await admin.put('/api/settings', { settings: { portal: { enabled: true, allowedDomains: [] } } });
+  const pc = client();
+  const r = await pc.post('/api/portal/tickets', { name: 'Rating Person', email: 'rating@company.com', title: 'Rate me once please', categoryId: (await admin.get('/api/bootstrap')).body.state.categories[0].id });
+  const tok = r.body.token; const st = (await admin.get('/api/bootstrap')).body.state; const x = st.tickets.find(t => t.portalToken === tok);
+  await admin.post(`/api/tickets/${x.id}/ops`, { ops: [{ op: 'set', key: 'status', value: 'resolved' }] });
+  assert.equal((await pc.post(`/api/portal/t/${tok}/csat`, { v: 4 })).body.ticket.csat, 4);
+  const again = await pc.post(`/api/portal/t/${tok}/csat`, { v: 1 });
+  assert.equal(again.status, 409); assert.equal(again.body.error, 'csat_done');
+  assert.equal((await pc.get('/api/portal/t/' + tok)).body.ticket.csat, 4, 'original rating unchanged');
+});
+
+test('DESK-GAP-001: portal "my devices" shows only assets in the signed-in employee\'s custody', async () => {
+  await admin.put('/api/settings', { settings: { portal: { enabled: true, allowedDomains: [] } } });
+  const mk = async (id, name, email) => (await admin.put('/api/c/requesters/' + id, { name, email, dept: 'Test' })).body.item;
+  const a = await mk('rqowner1', 'Owner One', 'owner1@company.com'), b = await mk('rqowner2', 'Owner Two', 'owner2@company.com');
+  const asset = async (id, tag, requesterId, status) => (await admin.put('/api/c/assets/' + id, { tag, name: 'Test ' + tag, type: 'Laptop', status, requesterId, criticality: 'medium' })).body.item;
+  await asset('ast-own-1', 'TST-001', a.id, 'active'); await asset('ast-own-2', 'TST-002', b.id, 'active'); await asset('ast-own-3', 'TST-003', a.id, 'retired');
+  const anonP = client(); assert.equal((await anonP.get('/api/portal/assets')).status, 401, 'needs a portal session');
+  const pc = client(); mails.length = 0;
+  await pc.post('/api/portal/otp', { email: 'owner1@company.com', lang: 'en' });
+  const m = await waitFor(() => mails.find(x => x.to === 'owner1@company.com' && /code/.test(x.subject)));
+  const code = (/(\d{6})/.exec(m.subject) || [])[1];
+  assert.equal((await pc.post('/api/portal/login', { email: 'owner1@company.com', code })).status, 200);
+  const r = await pc.get('/api/portal/assets');
+  assert.equal(r.status, 200); assert.deepEqual(r.body.assets.map(x => x.tag), ['TST-001'], 'own active asset only (not other owner, not retired)');
+  assert.deepEqual(Object.keys(r.body.assets[0]).sort(), ['location', 'name', 'serial', 'since', 'status', 'tag', 'type'], 'no internal fields');
+  assert.equal((await pc.get('/api/portal/assets?requesterId=' + b.id)).body.assets.length, 1, 'client-supplied ids are ignored');
+  await admin.put('/api/settings', { settings: { portal: { enabled: false, allowedDomains: [] } } });
+  assert.equal((await pc.get('/api/portal/assets')).status, 404, 'off when the portal is off');
+});

@@ -123,7 +123,7 @@
   function resp(S, x, now) {
     const d = respDue(S, x);
     if (x.firstResponseAt) return { st: x.firstResponseAt <= d ? 'met' : 'breached', due: d, at: x.firstResponseAt };
-    if (!isOpen(x)) return { st: 'met', due: d };
+    if (!isOpen(x)) { const end = x.resolvedAt || x.closedAt || now; return { st: end <= d ? 'met' : 'breached', due: d, noReply: true }; } // DESK-BUG-001: closed with no public reply
     return now > d ? { st: 'breached', due: d, rem: d - now } : { st: 'ok', due: d, rem: d - now };
   }
 
@@ -134,7 +134,7 @@
     const from = x.status; if (from === to) return;
     if (from === 'pending' && x.pausedAt) { x.pausedMs = (x.pausedMs || 0) + businessBetween(cal, x.pausedAt, now); x.pausedAt = null; }
     if (to === 'pending') x.pausedAt = now;
-    if (from === 'new' && to !== 'new' && !x.firstResponseAt) x.firstResponseAt = now;
+    /* DESK-BUG-001: a status change is not a response. firstResponseAt is set only by an agent's public reply (applyOp 'comment'). */
     if (to === 'resolved') { x.resolvedAt = now; x.closedAt = null; }
     if (to === 'closed') { x.closedAt = now; if (!x.resolvedAt) x.resolvedAt = now; }
     if ((to === 'new' || to === 'progress' || to === 'pending') && !isOpen(x)) { x.resolvedAt = null; x.closedAt = null; x.csat = null; }
@@ -230,7 +230,7 @@
         if (!KINDS.includes(kind) || !body) throw err('v_req2');
         x.comments.push({ id: uid(), by, kind, body, at: now });
         logA(x, kind, by, now);
-        if (kind === 'reply' && !x.firstResponseAt) x.firstResponseAt = now;
+        if (kind === 'reply' && !x.firstResponseAt && by !== 'requester' && by !== 'system') x.firstResponseAt = now; // DESK-BUG-001
         if (kind === 'reply' && x.status === 'new') setStatus(x, 'progress', by, now, calOf(S));
         if (kind === 'requester' && x.status === 'pending') { setStatus(x, 'progress', 'system', now, calOf(S)); logA(x, 'autoreopen', 'system', now); }
         break;
@@ -280,6 +280,7 @@
       case 'csat': {
         const v = +op.v; if (![1, 2, 3, 4, 5].includes(v)) throw err('v_req2');
         if (isOpen(x)) throw err('csat_open');
+        if (x.csat != null) throw err('csat_done', 409); // DESK-BUG-002: first rating is final for this resolution
         x.csat = v; logA(x, 'csat', by, now, { v });
         break;
       }

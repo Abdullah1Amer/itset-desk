@@ -193,6 +193,8 @@ table.edit input,table.edit select,table.edit textarea{padding:6px 8px}
 .stars{display:flex;gap:2px}
 .stars button{border:0;background:none;cursor:pointer;font-size:20px;color:var(--line);padding:0 2px;line-height:1}
 .stars button.on{color:var(--warn)}
+.stars span{font-size:20px;color:var(--line);padding:0 2px;line-height:1}
+.stars span.on{color:var(--warn)} /* DESK-BUG-002: read-only rating */
 .ck{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
 .ck label{flex:1;display:flex;gap:8px;align-items:center;cursor:pointer;min-width:0;overflow-wrap:anywhere}
 .ck.done label{text-decoration:line-through;color:var(--muted)}
@@ -201,6 +203,7 @@ table.edit input,table.edit select,table.edit textarea{padding:6px 8px}
 .kbs{display:flex;flex-direction:column;gap:6px}
 .kbs button{border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:7px 10px;text-align:start;cursor:pointer;font-size:13px}
 .kbs button:hover{background:var(--hover)}
+.kbs .p-dev{border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:7px 10px;font-size:13px} /* DESK-GAP-001 */
 
 /* modal */
 .modal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding-block:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--scrim)}

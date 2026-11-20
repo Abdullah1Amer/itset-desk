@@ -203,3 +203,20 @@ test('asset service figures: MTTR and MTBF from incidents only', () => {
   const st = C.assetStats(s, 'pa1', NOW);
   assert.equal(st.incidents, 2); assert.equal(st.total, 3); assert.equal(st.mttr, 3 * H); assert.equal(st.mtbf, 50 * H);
 });
+
+test('DESK-BUG-001: status changes never set firstResponseAt; closed with no reply is judged by closure time', () => {
+  const S = { settings: { calendar: C.cleanCalendar({ mode: '24x7' }) }, sla: { P3: { resp: 60, res: 600 } } };
+  const x = { createdAt: 0, priority: 3, status: 'new', pausedMs: 0, pausedAt: null, firstResponseAt: null, resolvedAt: null, closedAt: null, csat: null, activity: [] };
+  C.setStatus(x, 'progress', 'a1', 10 * MIN, S.settings.calendar); assert.equal(x.firstResponseAt, null);
+  C.setStatus(x, 'resolved', 'a1', 2 * HR, S.settings.calendar); assert.equal(x.firstResponseAt, null);
+  assert.equal(C.resp(S, x, 3 * HR).st, 'breached', 'resolved after the response target without any public reply');
+  const y = Object.assign({}, x, { activity: [], status: 'new', resolvedAt: null }); C.setStatus(y, 'resolved', 'a1', 30 * MIN, S.settings.calendar);
+  assert.equal(C.resp(S, y, 3 * HR).st, 'met', 'resolved inside the response target');
+});
+
+test('DESK-BUG-002: CSAT cannot be overwritten', () => {
+  const x = { status: 'resolved', csat: null, activity: [] };
+  C.applyOp({ tickets: [x] }, x, { op: 'csat', v: 5 }, 'requester', 1, false); assert.equal(x.csat, 5);
+  assert.throws(() => C.applyOp({ tickets: [x] }, x, { op: 'csat', v: 2 }, 'requester', 2, false), e => e.code === 'csat_done' && e.status === 409);
+  assert.equal(x.csat, 5);
+});
