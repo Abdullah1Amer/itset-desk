@@ -86,6 +86,8 @@ const L={
  bad_dates:['نهاية الضمان قبل تاريخ الشراء','Warranty end is before the purchase date'], v_disposal:['طريقة التخلص والتاريخ مطلوبين','Disposal method and date are required'],
  v_target:['اختار جهاز واحد على الأقل أو نوع أجهزة','Pick at least one device or a device type'], v_every:['التكرار من 1 لـ 730 يوم، والميعاد مطلوب، والفترة المسبقة من 0 لـ 30','Every 1–730 days, a due date, and 0–30 lead days'], v_date:['التاريخ غير صحيح','Invalid date'],
  kbSub:['حلول موثقة يرجع لها الفريق ويقترحها النظام داخل التذكرة','Documented fixes the team reuses, suggested inside tickets'],
+ kbAud:['مين يشوف المقال؟','Audience'], aud_internal:['فريق الـ IT بس (داخلي)','IT team only (internal)'], aud_portal:['الموظفين على البوابة','Employees on the portal'], audPortalChip:['على البوابة','On portal'],
+ kbAudHint:['المقالات الداخلية مش بتظهر على البوابة أبداً','Internal articles are never shown on the portal'],
  newArticle:['مقال جديد','New article'], body:['المحتوى','Content'], kbSearch:['ابحث في المقالات…','Search articles…'], noArticles:['لا توجد مقالات','No articles'],
  reportsSub:['أداء الفريق والالتزام بالـ SLA','Team performance and SLA compliance'], period:['الفترة','Period'], d7:['7 أيام','7 days'], d30:['30 يوم','30 days'], d90:['90 يوم','90 days'], dall:['كل الفترات','All time'],
  agentPerf:['أداء الفريق','Agent performance'], agent:['الموظف','Agent'], assigned:['المُسندة','Assigned'], resolved:['المحلولة','Resolved'], avgRes:['متوسط وقت الحل','Avg resolution'], avgResp:['متوسط أول رد','Avg first response'], logged:['الوقت المسجل','Time logged'], csatAvg:['متوسط CSAT','Avg CSAT'],
@@ -888,20 +890,21 @@ function vKB(){const q=U.kbq.trim().toLowerCase();
  const list=S.kb.filter(k=>!q||(k.title+' '+k.body+' '+k.tags).toLowerCase().includes(q));
  return `<div class="head"><div><h1>${t('kb')}</h1><p>${t('kbSub')}</p></div><button class="btn pri" data-act="kbForm">${I.plus}${t('newArticle')}</button></div>
  <div class="toolbar"><input type="search" id="kbq" placeholder="${t('kbSearch')}" value="${esc(U.kbq)}" style="max-width:360px"></div>
- ${list.length?`<div class="kb-grid">${list.map(k=>`<button class="card kb-card" data-act="kbOpen" data-id="${k.id}"><span class="muted" style="font-size:12px">${esc(cat(k.category)?.name||'—')}</span><b>${esc(k.title)}</b><p>${esc(k.body)}</p></button>`).join('')}</div>`:`<div class="empty">${t('noArticles')}</div>`}`}
+ ${list.length?`<div class="kb-grid">${list.map(k=>`<button class="card kb-card" data-act="kbOpen" data-id="${k.id}"><span class="muted" style="font-size:12px">${esc(cat(k.category)?.name||'—')}</span><b>${esc(k.title)}${k.audience==='portal'?` <span class="chip plain p4">${t('audPortalChip')}</span>`:''}</b><p>${esc(k.body)}</p></button>`).join('')}</div>`:`<div class="empty">${t('noArticles')}</div>`}`}
 function kbOpen(id){const k=S.kb.find(a=>a.id===id);if(!k)return;
- modal(k.title,`<div class="muted" style="font-size:12px">${esc(cat(k.category)?.name||'')} ${k.tags?'· '+esc(k.tags):''}</div><div class="desc">${esc(k.body)}</div>`,
+ modal(k.title,`<div class="muted" style="font-size:12px">${esc(cat(k.category)?.name||'')} ${k.tags?'· '+esc(k.tags):''} · ${t(k.audience==='portal'?'aud_portal':'aud_internal')}</div><div class="desc">${esc(k.body)}</div>`,
  `${U.open?`<button class="btn" data-act="kbInsert" data-id="${k.id}">${t('insertLink')}</button>`:''}${isAdmin()?`<button class="btn ghost" data-act="entDel" data-coll="kb" data-id="${k.id}" style="color:var(--crit)">${t('del')}</button>`:''}<button class="btn" data-act="kbForm" data-id="${k.id}">${t('edit')}</button><button class="btn pri" data-act="mclose">${t('close')}</button>`)}
-function kbForm(id){const k=id?S.kb.find(a=>a.id===id):{title:'',category:'',tags:'',body:''};U.form=id||'new';
+function kbForm(id){const k=id?S.kb.find(a=>a.id===id):{title:'',category:'',tags:'',body:'',audience:'internal'};U.form=id||'new';
  modal(id?t('edit'):t('newArticle'),`<label class="field"><span>${t('title')} *</span><input type="text" id="kT" maxlength="160" value="${esc(k.title)}"><small class="ferr" id="ekT"></small></label>
  <div class="grid2"><label class="field"><span>${t('category')}</span><select id="kC">${opt('',t('none'),k.category||'')}${catOpts(k.category)}</select></label>
  <label class="field"><span>${t('tags')}</span><input type="text" id="kG" value="${esc(k.tags)}" placeholder="${t('tagsHint')}" maxlength="200"></label></div>
+ <label class="field"><span>${t('kbAud')}</span><select id="kA">${opt('internal',t('aud_internal'),k.audience==='portal'?'portal':'internal')}${opt('portal',t('aud_portal'),k.audience==='portal'?'portal':'internal')}</select><small class="muted">${t('kbAudHint')}</small></label>
  <label class="field"><span>${t('body')} *</span><textarea id="kB" rows="10" maxlength="10000">${esc(k.body)}</textarea><small class="ferr" id="ekB"></small></label>`,
  `<button class="btn" data-act="mclose">${t('cancel')}</button><button class="btn pri" data-act="saveKb">${t('save')}</button>`)}
 async function saveKb(){const T=$('#kT').value.trim(),B=$('#kB').value.trim();$('#ekT').textContent=T?'':t('v_req2');$('#ekB').textContent=B?'':t('v_req2');
  $('#kT').classList.toggle('err',!T);$('#kB').classList.toggle('err',!B);if(!T||!B)return;
  const id=U.form==='new'?C.uid():U.form;
- if(await putEnt('kb',{id,title:T,body:B,category:$('#kC').value,tags:$('#kG').value.trim()})){closeModal();toast(t('saved'))}}
+ if(await putEnt('kb',{id,title:T,body:B,category:$('#kC').value,tags:$('#kG').value.trim(),audience:$('#kA').value})){closeModal();toast(t('saved'))}}
 
 /* ================= Reports ================= */
 function vReports(){

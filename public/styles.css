@@ -203,6 +203,9 @@ table.edit input,table.edit select,table.edit textarea{padding:6px 8px}
 .kbs{display:flex;flex-direction:column;gap:6px}
 .kbs button{border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:7px 10px;text-align:start;cursor:pointer;font-size:13px}
 .kbs button:hover{background:var(--hover)}
+.kbs .p-kb{border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:7px 10px;font-size:13px} /* DESK-GAP-004 */
+.kbs .p-kb summary{cursor:pointer;font-weight:600}
+.kbs .p-kb .tx{white-space:pre-wrap;margin-top:8px;line-height:1.6}
 .kbs .p-dev{border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:7px 10px;font-size:13px} /* DESK-GAP-001 */
 
 /* modal */

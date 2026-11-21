@@ -371,7 +371,8 @@
         const title = str(d.title, 160), body = str(d.body, 10000);
         if (!title || !body) throw err('v_req2');
         const category = d.category && S.categories.some(c => c.id === d.category) ? d.category : '';
-        return { id, title, body, category, tags: str(d.tags, 200) };
+        // DESK-GAP-004: audience 'portal' = visible to employees in the self-service portal; anything else = internal (default, fail-closed)
+        return { id, title, body, category, tags: str(d.tags, 200), audience: d.audience === 'portal' ? 'portal' : 'internal' };
       }
       case 'agents': {
         const name = str(d.name, 60), email = str(d.email, 120).toLowerCase();

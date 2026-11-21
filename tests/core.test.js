@@ -220,3 +220,11 @@ test('DESK-BUG-002: CSAT cannot be overwritten', () => {
   assert.throws(() => C.applyOp({ tickets: [x] }, x, { op: 'csat', v: 2 }, 'requester', 2, false), e => e.code === 'csat_done' && e.status === 409);
   assert.equal(x.csat, 5);
 });
+
+test('DESK-GAP-004: knowledge-base audience defaults to internal; only the exact value "portal" publishes', () => {
+  const s = C.defaults('en');
+  const mk = audience => C.cleanEntity(s, 'kb', { id: 'kbx', title: 'Reset VPN', body: 'Steps', audience }, {}).audience;
+  assert.equal(mk(undefined), 'internal', 'no field → internal');
+  assert.equal(mk('portal'), 'portal');
+  for (const v of ['PORTAL', 'public', 'all', true, 1, ' portal']) assert.equal(mk(v), 'internal', 'fail closed for ' + JSON.stringify(v));
+});
