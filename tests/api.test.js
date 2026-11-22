@@ -532,3 +532,31 @@ test('DESK-GAP-001: portal "my devices" shows only assets in the signed-in emplo
   await admin.put('/api/settings', { settings: { portal: { enabled: false, allowedDomains: [] } } });
   assert.equal((await pc.get('/api/portal/assets')).status, 404, 'off when the portal is off');
 });
+
+/* ---- regression test for DESK-GAP-003 (branch claude/desk-gap-003-portal-asset) ---- */
+test('DESK-GAP-003: a portal request can link only a device in the signed-in requester\'s own custody', async () => {
+  await admin.put('/api/settings', { settings: { portal: { enabled: true, allowedDomains: [] } } });
+  const catId = (await admin.get('/api/bootstrap')).body.state.categories[0].id;
+  const mk = async (id, name, email) => (await admin.put('/api/c/requesters/' + id, { name, email, dept: 'Test' })).body.item;
+  const a = await mk('rqpick1', 'Picker One', 'picker1@company.com'), b = await mk('rqpick2', 'Picker Two', 'picker2@company.com');
+  const asset = async (id, tag, requesterId, status) => (await admin.put('/api/c/assets/' + id, { tag, name: 'Test ' + tag, type: 'Laptop', status, requesterId, criticality: 'medium' })).body.item;
+  const mine = await asset('ast-pick-1', 'PCK-001', a.id, 'active'), other = await asset('ast-pick-2', 'PCK-002', b.id, 'active');
+  await asset('ast-pick-3', 'PCK-003', a.id, 'retired');
+  const base = { name: 'Picker One', email: 'picker1@company.com', title: 'My laptop will not boot', categoryId: catId };
+  const anonP = client();
+  const r0 = await anonP.post('/api/portal/tickets', Object.assign({}, base, { assetTag: 'PCK-001' }));
+  assert.equal(r0.status, 401, 'linking a device needs a portal session'); assert.equal(r0.body.error, 'auth');
+  const pc = client(); mails.length = 0;
+  await pc.post('/api/portal/otp', { email: 'picker1@company.com', lang: 'en' });
+  const m = await waitFor(() => mails.find(x => x.to === 'picker1@company.com' && /code/.test(x.subject)));
+  assert.equal((await pc.post('/api/portal/login', { email: 'picker1@company.com', code: (/(\d{6})/.exec(m.subject) || [])[1] })).status, 200);
+  const no = async (o, why) => { const r = await pc.post('/api/portal/tickets', Object.assign({}, base, o)); assert.equal(r.status, 403, why); assert.equal(r.body.error, 'asset_not_yours', why); };
+  await no({ assetTag: 'PCK-002' }, "someone else's device");
+  await no({ assetTag: 'PCK-003' }, 'retired device is not in custody');
+  await no({ assetTag: 'PCK-001', name: 'Other Person', email: 'picker2@company.com' }, 'form e-mail must be the session e-mail');
+  const ok = await pc.post('/api/portal/tickets', Object.assign({}, base, { assetTag: 'PCK-001', assetId: other.id }));
+  assert.equal(ok.status, 200);
+  const t = (await admin.get('/api/bootstrap')).body.state.tickets.find(x => x.key === ok.body.key);
+  assert.equal(t.assetId, mine.id, 'own device linked; raw assetId from the client ignored');
+  await admin.put('/api/settings', { settings: { portal: { enabled: false, allowedDomains: [] } } });
+});
