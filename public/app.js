@@ -756,16 +756,18 @@ function assetKpis(){const td=todayS(),A=S.assets;
   ${k(t('k_warranty'),warr,t('k_warrantySub'),'data-act="af" data-k="warranty" data-v="1"')}
   ${k(t('k_pmDue'),due7,t('k_pmDueSub'),'data-act="atab" data-v="plans"')}
   ${k(t('k_pmOpen'),pmOpen,t('k_click'),'data-act="pmTickets"')}</div>`}
-function vAssetList(){const f=U.af||(U.af={q:'',status:'',type:'',warranty:''});const td=todayS();const q=f.q.trim().toLowerCase();
- const types=[...new Set(S.assets.map(a=>a.type).filter(Boolean))].sort();
- const list=S.assets.filter(a=>(f.status?a.status===f.status:a.status!=='disposed')&&(!f.type||a.type===f.type)
+function assetFiltered(){const f=U.af||(U.af={q:'',status:'',type:'',warranty:''});const td=todayS();const q=f.q.trim().toLowerCase();
+ return S.assets.filter(a=>(f.status?a.status===f.status:a.status!=='disposed')&&(!f.type||a.type===f.type)
   &&(!f.warranty||(!['retired','disposed'].includes(a.status)&&['soon','expired'].includes(C.warranty(a,td))))
-  &&(!q||[a.tag,a.name,a.type,ownerOf(a),a.location,a.serial,a.vendor].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.tag.localeCompare(b.tag));
+  &&(!q||[a.tag,a.name,a.type,ownerOf(a),a.location,a.serial,a.vendor].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.tag.localeCompare(b.tag))}
+function vAssetList(){const f=U.af||(U.af={q:'',status:'',type:'',warranty:''});
+ const types=[...new Set(S.assets.map(a=>a.type).filter(Boolean))].sort();
+ const list=assetFiltered();
  const fl=f.status||f.type||f.warranty||f.q;
  return `<div class="toolbar" style="margin-bottom:12px"><input type="search" id="asq" placeholder="${t('asSearch')}" value="${esc(f.q)}" style="max-width:320px" aria-label="${t('asSearch')}">
   <select data-ch="af" data-k="status" aria-label="${t('aStatus')}">${opt('',t('aAllLive'),f.status)}${C.ASSET_STATUSES.map(s=>opt(s,t('a_'+s),f.status)).join('')}</select>
   <select data-ch="af" data-k="type" aria-label="${t('assetType')}">${opt('',t('allTypes'),f.type)}${types.map(y=>opt(y,y,f.type)).join('')}</select>
-  ${f.warranty?`<span class="chip p2">${t('k_warranty')}</span>`:''}${fl?`<button class="btn sm ghost" data-act="afClear">${t('clearFilters')}</button>`:''}</div>
+  ${f.warranty?`<span class="chip p2">${t('k_warranty')}</span>`:''}${fl?`<button class="btn sm ghost" data-act="afClear">${t('clearFilters')}</button>`:''}<button class="btn sm" data-act="exportAssetsCsv" style="margin-inline-start:auto"${list.length?'':' disabled'}>${t('exportCsv')}</button></div>
  <div class="tbl-wrap">${list.length?`<table><thead><tr><th>${t('assetTag')}</th><th>${t('assetName')}</th><th>${t('assetType')}</th><th>${t('owner')}</th><th>${t('location')}</th><th>${t('aStatus')}</th><th>${t('warrantyEnd')}</th><th>${t('tCount')}</th></tr></thead><tbody>
  ${list.map(a=>{const n=S.tickets.filter(x=>x.assetId===a.id);const o=n.filter(isOpen).length;
   return `<tr class="row" data-act="assetOpen" data-id="${esc(a.id)}"><td class="mono">${esc(a.tag)}${a.criticality==='high'?` <span class="chip p1" title="${t('crit_high')}">${t('critShort')}</span>`:''}</td><td>${esc(a.name)}</td><td>${esc(a.type||'—')}</td><td>${esc(ownerOf(a)||'—')}</td><td>${esc(a.location||'—')}</td>
@@ -1259,6 +1261,7 @@ document.addEventListener('click',async e=>{
    await busy(el,async()=>{let okAll=true;for(const i of [...U.sel]){if(!(await ops(i,list)))okAll=false}if(okAll){U.sel.clear();toast(t('bulkDone'))}softRender()});break}
   case'bulkDel':confirmBox(t('confirmTrash'),async()=>{for(const i of [...U.sel]){try{const j=await api('DELETE',`/api/tickets/${encodeURIComponent(i)}`);if(j.trash&&S.trash)upsert('trash',j.trash);remove('tickets',i);U.sel.delete(i)}catch(err){fail(err);break}}toast(t('movedToTrash'));softRender()});break;
   case'exportCsv':tryDownload('tickets-'+new Date(now()).toISOString().slice(0,10)+'.csv',csv(),'text/csv;charset=utf-8');break;
+  case'exportAssetsCsv':tryDownload('assets-'+new Date(now()).toISOString().slice(0,10)+'.csv',C.assetsCsv(S,assetFiltered(),todayS()),'text/csv;charset=utf-8');break;
   case'exportJson':try{const j=await api('GET','/api/export');tryDownload('itset-servicedesk-backup-'+new Date(now()).toISOString().slice(0,10)+'.json',JSON.stringify(j,null,1),'application/json')}catch(err){fail(err)}break;
   case'importJson':importBox();break;
   case'doImport':{let o=null;try{o=JSON.parse($('#impTxt').value)}catch(_){}if(!o||o.version!==1||!Array.isArray(o.tickets)){$('#eImp').textContent=t('importBad');break}

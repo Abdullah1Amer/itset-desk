@@ -220,3 +220,29 @@ test('DESK-BUG-002: CSAT cannot be overwritten', () => {
   assert.throws(() => C.applyOp({ tickets: [x] }, x, { op: 'csat', v: 2 }, 'requester', 2, false), e => e.code === 'csat_done' && e.status === 409);
   assert.equal(x.csat, 5);
 });
+
+test('DESK-GAP-006: assets CSV export exists and neutralises formula cells', () => {
+  assert.equal(typeof C.assetsCsv, 'function', 'core exposes an assets CSV export');
+  const S = { requesters: [{ id: 'R1', name: '=HYPERLINK("http://x","click")', email: 'r1@example.com' }],
+    tickets: [{ id: 't1', assetId: 'A1', status: 'progress' }, { id: 't2', assetId: 'A1', status: 'closed' }],
+    assets: [
+      { id: 'A1', tag: 'LAP-1', name: '+cmd|calc', type: '-2+3', status: 'active', criticality: 'high', requesterId: 'R1', user: '', location: '@SUM(1)',
+        serial: '\tTAB', vendor: 'Say "hi", ok', purchaseDate: '2025-01-01', warrantyEnd: '2026-12-01', notes: 'سطر عربي', disposal: null },
+      { id: 'A2', tag: 'LAP-2', name: 'Normal', type: 'Laptop', status: 'disposed', criticality: 'medium', requesterId: '', user: 'Desk user', location: '',
+        serial: '', vendor: '', purchaseDate: '', warrantyEnd: '', notes: '\rCR', disposal: { method: 'recycled', date: '2026-10-01', dataWiped: false } }] };
+  const out = C.assetsCsv(S, null, '2026-11-23');
+  assert.ok(out.startsWith('﻿'), 'UTF-8 BOM for Excel');
+  const lines = out.slice(1).split('\r\n');
+  assert.equal(lines.length, 3, 'header + one line per asset');
+  assert.equal(lines[0].split(',')[0], '"Tag"');
+  for (const bad of ['=HYPERLINK', '+cmd', '-2+3', '@SUM', '\tTAB', '\rCR']) {
+    assert.ok(out.includes(`"'${bad}`), `${JSON.stringify(bad)} is prefixed with '`);
+    assert.ok(!out.includes(`"${bad}`), `${JSON.stringify(bad)} never starts a cell`);
+  }
+  assert.ok(out.includes('"Say ""hi"", ok"'), 'quotes doubled, comma kept inside the cell');
+  assert.ok(lines[1].includes('"r1@example.com"') && lines[1].includes('"soon"') && lines[1].includes('"2","1"'), 'owner e-mail, warranty state, ticket counts');
+  assert.ok(lines[2].includes('"Desk user"') && lines[2].includes('"recycled","2026-10-01","no"'), 'free-text owner and disposal columns');
+  assert.ok(out.includes('"سطر عربي"'), 'Arabic text kept');
+  assert.equal(C.assetsCsv(S, [S.assets[1]], '2026-11-23').slice(1).split('\r\n').length, 2, 'exports only the given (filtered) list');
+  assert.equal(C.csvCell('=1+1'), `"'=1+1"`); assert.equal(C.csvCell(null), '""'); assert.equal(C.csvCell(0), '"0"');
+});
