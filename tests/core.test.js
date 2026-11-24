@@ -246,3 +246,28 @@ test('DESK-GAP-006: assets CSV export exists and neutralises formula cells', () 
   assert.equal(C.assetsCsv(S, [S.assets[1]], '2026-11-23').slice(1).split('\r\n').length, 2, 'exports only the given (filtered) list');
   assert.equal(C.csvCell('=1+1'), `"'=1+1"`); assert.equal(C.csvCell(null), '""'); assert.equal(C.csvCell(0), '"0"');
 });
+
+test('DESK-GAP-005: typed ticket links are stored on both sides with the inverse type', () => {
+  assert.ok(Array.isArray(C.LINK_TYPES) && C.LINK_TYPES.includes('duplicate_of') && C.LINK_TYPES.includes('caused_by'), 'core exposes link types');
+  const mk = (id, key) => ({ id, key, status: 'progress', links: [], activity: [] });
+  const a = mk('ta', 'IT-1'), b = mk('tb', 'IT-2'), p = mk('tp', 'IT-3'), legacy = mk('tl', 'IT-4');
+  const S = { tickets: [a, b, p, legacy] };
+  C.applyOp(S, a, { op: 'link', other: 'tb', type: 'duplicate_of' }, 'u1', 1000, false);
+  assert.equal(C.linkType(a, 'tb'), 'duplicate_of'); assert.equal(C.linkType(b, 'ta'), 'duplicated_by');
+  assert.ok(a.links.includes('tb') && b.links.includes('ta'), 'ids on both sides');
+  assert.equal(a.activity.at(-1).lt, 'duplicate_of');
+  C.applyOp(S, a, { op: 'link', other: 'tp', type: 'caused_by' }, 'u1', 1001, false);
+  assert.equal(C.linkType(a, 'tp'), 'caused_by'); assert.equal(C.linkType(p, 'ta'), 'causes');
+  C.applyOp(S, a, { op: 'link', other: 'tp', type: 'relates' }, 'u1', 1002, false);
+  assert.equal(C.linkType(p, 'ta'), 'relates', 're-linking changes the type on both sides');
+  assert.equal(a.links.filter(l => l === 'tp').length, 1, 'no duplicate ids');
+  assert.throws(() => C.applyOp(S, a, { op: 'link', other: 'tb', type: 'blocks' }, 'u1', 1003, false), e => e.code === 'v_req2');
+  C.applyOp(S, a, { op: 'link', other: 'tl' }, 'u1', 1004, false);
+  assert.equal(C.linkType(a, 'tl'), 'relates', 'no type = relates');
+  legacy.linkTypes = undefined; assert.equal(C.linkType(legacy, 'ta'), 'relates', 'tickets from before 3.4.1 read as relates');
+  C.applyOp(S, a, { op: 'unlink', other: 'tb' }, 'u1', 1005, false);
+  assert.ok(!('tb' in a.linkTypes) && !('ta' in b.linkTypes) && !b.links.includes('ta'), 'unlink removes ids and types on both sides');
+  const c = { links: ['tp', 'gone'], linkTypes: { tp: 'causes', gone: 'duplicate_of', x: 'relates' } };
+  assert.equal(C.pruneLinks(c, new Set(['tp'])), true);
+  assert.deepEqual(c.links, ['tp']); assert.deepEqual(c.linkTypes, { tp: 'causes' });
+});

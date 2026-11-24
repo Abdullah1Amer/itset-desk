@@ -532,3 +532,19 @@ test('DESK-GAP-001: portal "my devices" shows only assets in the signed-in emplo
   await admin.put('/api/settings', { settings: { portal: { enabled: false, allowedDomains: [] } } });
   assert.equal((await pc.get('/api/portal/assets')).status, 404, 'off when the portal is off');
 });
+
+/* ---- regression test for DESK-GAP-005 (branch claude/desk-gap-005-typed-links) ---- */
+test('DESK-GAP-005: typed link through the API is saved on both tickets with the inverse type', async () => {
+  const mk = async title => (await agent.post('/api/tickets', { title, type: 'incident', categoryId: 'c5', impact: 2, urgency: 2, requester: { name: 'Link Test' } })).body.ticket;
+  const dup = await mk('VPN down again on floor 2'), orig = await mk('VPN down on floor 2'), prob = await mk('Firewall firmware bug');
+  let r = await agent.post(`/api/tickets/${dup.id}/ops`, { ops: [{ op: 'link', other: orig.id, type: 'duplicate_of' }, { op: 'link', other: prob.id, type: 'caused_by' }] });
+  assert.equal(r.status, 200);
+  assert.equal((await agent.post(`/api/tickets/${dup.id}/ops`, { ops: [{ op: 'link', other: orig.id, type: 'nonsense' }] })).status, 400);
+  const st = (await admin.get('/api/bootstrap')).body.state, T = id => st.tickets.find(t => t.id === id);
+  assert.deepEqual(T(dup.id).linkTypes, { [orig.id]: 'duplicate_of', [prob.id]: 'caused_by' });
+  assert.equal(T(orig.id).linkTypes[dup.id], 'duplicated_by'); assert.equal(T(prob.id).linkTypes[dup.id], 'causes');
+  r = await agent.post(`/api/tickets/${orig.id}/ops`, { ops: [{ op: 'unlink', other: dup.id }] });
+  const st2 = (await admin.get('/api/bootstrap')).body.state, T2 = id => st2.tickets.find(t => t.id === id);
+  assert.ok(!T2(dup.id).links.includes(orig.id) && !(orig.id in T2(dup.id).linkTypes), 'unlink from the other side clears both');
+  assert.equal(T2(dup.id).linkTypes[prob.id], 'caused_by');
+});
