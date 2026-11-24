@@ -128,6 +128,20 @@
   }
 
   /* ---------- ticket mutations ---------- */
+  /* DESK-GAP-005: ticket link types. Each value is read from the ticket that holds it; LINK_INV gives the other side. */
+  const LINK_TYPES = ['relates', 'duplicate_of', 'duplicated_by', 'caused_by', 'causes'];
+  const LINK_INV = { relates: 'relates', duplicate_of: 'duplicated_by', duplicated_by: 'duplicate_of', caused_by: 'causes', causes: 'caused_by' };
+  /** Type of the link from ticket x to ticket id; 'relates' when unknown (links made before typed links existed). */
+  function linkType(x, id) { const v = x && x.linkTypes && x.linkTypes[id]; return LINK_TYPES.includes(v) ? v : 'relates'; }
+  /** Drop link ids (and their types) that point to tickets not in `alive` (a Set of ids). Returns true if x changed. */
+  function pruneLinks(x, alive) {
+    const keep = (x.links || []).filter(l => alive.has(l)); let ch = keep.length !== (x.links || []).length; x.links = keep;
+    if (x.linkTypes && typeof x.linkTypes === 'object') {
+      const lt = {}; for (const k of Object.keys(x.linkTypes)) if (alive.has(k) && keep.includes(k) && LINK_TYPES.includes(x.linkTypes[k])) lt[k] = x.linkTypes[k]; else ch = true;
+      x.linkTypes = lt;
+    }
+    return ch;
+  }
   function logA(x, k, by, now, extra) { x.activity.push(Object.assign({ at: now, by, k }, extra || {})); x.updatedAt = now; }
   /* pausedMs holds paused WORKING time (equal to wall time in 24x7 mode). */
   function setStatus(x, to, by, now, cal) {
@@ -184,7 +198,7 @@
     const x = Object.assign({
       id: uid(), key: S.settings.prefix + '-' + (S.settings.nextNo++), status: 'new', teamId: c ? c.team : '', assigneeId: null,
       createdAt: now, updatedAt: now, firstResponseAt: null, resolvedAt: null, closedAt: null, pausedMs: 0, pausedAt: null, csat: null,
-      comments: [], worklogs: [], checklist: [], links: [], attachments: [], portalToken: token(), activity: [{ at: now, by, k: 'created' }]
+      comments: [], worklogs: [], checklist: [], links: [], linkTypes: {}, attachments: [], portalToken: token(), activity: [{ at: now, by, k: 'created' }]
     }, data);
     const chosen = checkAssignee(S, d.assigneeId);
     if (chosen) setAssignee(x, chosen, by, now);
@@ -264,17 +278,27 @@
         break;
       }
       case 'link': {
+        /* DESK-GAP-005: typed links. links[] keeps the ids (unchanged contract); linkTypes{otherId: type} holds the type from
+           THIS ticket's side, the other ticket gets the inverse. Missing entry = 'relates' (data from before 3.4.1). */
         const o = S.tickets.find(z => z.id === op.other);
         if (!o || o.id === x.id) throw err('v_req2');
+        const type = op.type == null || op.type === '' ? 'relates' : op.type;
+        if (!LINK_TYPES.includes(type)) throw err('v_req2');
         if (!x.links.includes(o.id)) x.links.push(o.id);
-        if (!o.links.includes(x.id)) { o.links.push(x.id); o.updatedAt = now; }
-        logA(x, 'link', by, now, { v: o.key }); touched.push(o);
+        if (!o.links.includes(x.id)) o.links.push(x.id);
+        x.linkTypes = Object.assign({}, x.linkTypes, { [o.id]: type });
+        o.linkTypes = Object.assign({}, o.linkTypes, { [x.id]: LINK_INV[type] }); o.updatedAt = now;
+        logA(x, 'link', by, now, { v: o.key, lt: type }); touched.push(o);
         break;
       }
       case 'unlink': {
         const o = S.tickets.find(z => z.id === op.other);
         x.links = x.links.filter(l => l !== op.other); x.updatedAt = now;
-        if (o) { o.links = o.links.filter(l => l !== x.id); o.updatedAt = now; touched.push(o); }
+        if (x.linkTypes) { x.linkTypes = Object.assign({}, x.linkTypes); delete x.linkTypes[op.other]; }
+        if (o) {
+          o.links = o.links.filter(l => l !== x.id); o.updatedAt = now; touched.push(o);
+          if (o.linkTypes) { o.linkTypes = Object.assign({}, o.linkTypes); delete o.linkTypes[x.id]; }
+        }
         break;
       }
       case 'csat': {
@@ -755,7 +779,7 @@
     walk(obj, 0, ''); return obj;
   }
 
-  const api = { MIN, HR, DAY, demoMap, demoText, localize, STATUSES, TYPES, KINDS, ASSET_STATUSES, ASSET_CRIT, DISPOSAL_METHODS, PM_TYPES, MATRIX, EMAIL_RE, ID_RE,
+  const api = { MIN, HR, DAY, LINK_TYPES, LINK_INV, linkType, pruneLinks, demoMap, demoText, localize, STATUSES, TYPES, KINDS, ASSET_STATUSES, ASSET_CRIT, DISPOSAL_METHODS, PM_TYPES, MATRIX, EMAIL_RE, ID_RE,
     dateStr, addDays, daysBetween, todayIn, planTargets, runMaintenance, assetStats, warranty, cleanHistory,
     uid, prio, isOpen, pol, resDue, respDue, sla, resp, logA, setStatus, setAssignee, openLoad, autoPick,
     cleanTicketData, newTicket, applyOp, autoClose, cleanEntity, inUse, cleanSettings, cleanSla, cleanCalendar, cleanPortal, defaults, seed, err,

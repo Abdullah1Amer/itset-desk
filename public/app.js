@@ -44,6 +44,7 @@ const L={
  minutes:['الدقائق','Minutes'], logTime:['تسجيل وقت','Log time'], totalLogged:['إجمالي الوقت المسجل','Total logged'], noWork:['لم يُسجل وقت بعد','No time logged yet'], workNote:['ماذا تم؟','What was done?'],
  addItem:['أضف مهمة…','Add an item…'], noItems:['لا توجد مهام','No items'],
  linkTicket:['ربط بتذكرة…','Link a ticket…'], noLinks:['لا توجد تذاكر مرتبطة','No linked tickets'],
+ lt_relates:['مرتبطة بـ','Relates to'], lt_duplicate_of:['مكررة من','Duplicate of'], lt_duplicated_by:['ليها تذكرة مكررة','Duplicated by'], lt_caused_by:['سببها','Caused by'], lt_causes:['سبب في','Causes'], linkType:['نوع الربط','Link type'],
  respSla:['أول رد (Response)','First response'], resSla:['الحل (Resolution)','Resolution'], due:['الموعد','Due'], met:['ضمن SLA','Met'], breach:['خارج SLA','Breached'],
  left:['متبقي','left'], late:['متأخر','late'], paused:['متوقف مؤقتاً','Paused'],
  csat:['تقييم رضا العميل (CSAT)','Customer rating (CSAT)'], csatHint:['يُسجَّل يدوياً نيابةً عن مقدم الطلب','Entered manually on behalf of the requester'],
@@ -661,8 +662,8 @@ function drTab(x,draft,logged){
  }
  if(U.tab==='links'){
   const others=S.tickets.filter(o=>o.id!==x.id&&!x.links.includes(o.id));
-  return `${x.links.length?x.links.map(id=>{const o=tk(id);if(!o)return'';return `<div class="ck"><label data-act="open" data-id="${o.id}" style="cursor:pointer"><span class="mono muted">${esc(o.key)}</span> ${esc(o.title)} ${stChip(o.status)}</label><button class="icon-btn" data-act="unlink" data-id="${o.id}" aria-label="${t('del')}">✕</button></div>`}).join(''):`<div class="empty">${t('noLinks')}</div>`}
-   <div class="composer"><div class="row"><select id="linkSel" style="flex:1"><option value="">${t('linkTicket')}</option>${others.map(o=>opt(o.id,o.key+' — '+o.title)).join('')}</select><button class="btn sm pri" data-act="link">${t('add')}</button></div></div>`;
+  return `${x.links.length?x.links.map(id=>{const o=tk(id);if(!o)return'';const lt=C.linkType(x,o.id);return `<div class="ck"><label data-act="open" data-id="${o.id}" style="cursor:pointer"><span class="chip${lt==='relates'?'':' p2'}">${t('lt_'+lt)}</span> <span class="mono muted">${esc(o.key)}</span> ${esc(o.title)} ${stChip(o.status)}</label><button class="icon-btn" data-act="unlink" data-id="${o.id}" aria-label="${t('del')}">✕</button></div>`}).join(''):`<div class="empty">${t('noLinks')}</div>`}
+   <div class="composer"><div class="row"><select id="linkType" aria-label="${t('linkType')}">${C.LINK_TYPES.map(v=>opt(v,t('lt_'+v),'relates')).join('')}</select><select id="linkSel" style="flex:1"><option value="">${t('linkTicket')}</option>${others.map(o=>opt(o.id,o.key+' — '+o.title)).join('')}</select><button class="btn sm pri" data-act="link">${t('add')}</button></div></div>`;
  }
  return `<div>${x.activity.slice().sort((a,b)=>b.at-a.at).map(a=>`<div class="act"><time class="num">${fmtDate(a.at)}</time><div><b>${esc(agentName(a.by))}</b> ${actText(a)}</div></div>`).join('')}</div>`;
 }
@@ -672,7 +673,7 @@ function actText(a){
   case'prio':return `${t('a_prio')}: P${a.f} → P${a.v}`;case'field':return `${t('a_field')} ${esc(t(a.v))}`;
   case'reply':return t('a_comment');case'internal':return t('a_internal');case'requester':return t('a_req');
   case'work':return `${t('a_work')} (${minsTxt(a.v)})`;case'autoclose':return t('a_autoclose');case'autoreopen':return t('a_autoreopen');
-  case'link':return `${t('a_link')} ${esc(a.v)}`;case'csat':return `${t('a_csat')} ${'★'.repeat(a.v)}`;case'edit':return t('a_edit');case'check':return t('a_check');case'attach':return `${t('a_attach')} "${esc(a.v)}"`;case'att-del':return `${t('a_attdel')} "${esc(a.v)}"`;case'restored':return t('a_restored');default:return esc(a.k)}
+  case'link':return `${t('a_link')} ${esc(a.v)}${a.lt&&a.lt!=='relates'&&C.LINK_TYPES.includes(a.lt)?' ('+t('lt_'+a.lt)+')':''}`;case'csat':return `${t('a_csat')} ${'★'.repeat(a.v)}`;case'edit':return t('a_edit');case'check':return t('a_check');case'attach':return `${t('a_attach')} "${esc(a.v)}"`;case'att-del':return `${t('a_attdel')} "${esc(a.v)}"`;case'restored':return t('a_restored');default:return esc(a.k)}
 }
 function openTicket(id){U.open=id;U.tab='conv';U.kind='reply';$('#drawer').innerHTML='';renderDrawer()}
 
@@ -1284,7 +1285,7 @@ document.addEventListener('click',async e=>{
   case'addCk':{if(!x)break;const v=$('#ckNew').value.trim();if(!v){$('#ckNew').classList.add('err');break}
    await busy(el,async()=>{if(await ops(x.id,[{op:'check-add',text:v}])){renderDrawer();setTimeout(()=>$('#ckNew')?.focus(),0)}});break}
   case'delCk':x&&ops(x.id,[{op:'check-del',cid:id}]);break;
-  case'link':{if(!x)break;const o=$('#linkSel').value;if(o)await ops(x.id,[{op:'link',other:o}]);break}
+  case'link':{if(!x)break;const o=$('#linkSel').value,ty=($('#linkType')||{}).value||'relates';if(o)await ops(x.id,[{op:'link',other:o,type:ty}]);break}
   case'unlink':x&&ops(x.id,[{op:'unlink',other:id}]);break;
   case'csat':x&&ops(x.id,[{op:'csat',v:+el.dataset.v}]);break;
   case'assetForm':assetForm(id);break;

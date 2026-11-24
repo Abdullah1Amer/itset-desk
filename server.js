@@ -528,7 +528,7 @@ function purgeTrash(list, reason) {
   if (!list.length) return;
   const ids = new Set(list.map(x => x.id)), gone = new Set(list.filter(x => x.coll === 'tickets').map(x => x.item.id));
   const touched = new Map();
-  if (gone.size) S.tickets.forEach(t => { if (t.links.some(l => gone.has(l))) touched.set(t.id, Object.assign(clone(t), { links: t.links.filter(l => !gone.has(l)) })); });
+  if (gone.size) { const alive = new Set(S.tickets.map(t => t.id).filter(i => !gone.has(i))); S.tickets.forEach(t => { if (t.links.some(l => gone.has(l))) { const c = clone(t); C.pruneLinks(c, alive); touched.set(t.id, c); } }); }
   tx(() => { list.forEach(x => q.del.run('trash', x.id)); touched.forEach(t => putEnt('tickets', t)); });
   S.trash = S.trash.filter(x => !ids.has(x.id));
   list.filter(x => x.coll === 'tickets').forEach(x => (x.item.attachments || []).forEach(a => gcHash(a.hash)));
@@ -547,7 +547,7 @@ route('POST', '/api/trash/:tid/restore', 'admin', (ctx) => {
     item.teamId = k.team;
     if (item.assigneeId && !S.agents.some(a => a.id === item.assigneeId)) item.assigneeId = null;
     if (item.assetId && !S.assets.some(a => a.id === item.assetId)) item.assetId = '';
-    item.links = (item.links || []).filter(l => S.tickets.some(t => t.id === l));
+    C.pruneLinks(item, new Set(S.tickets.map(t => t.id))); // DESK-GAP-005: also drops stale link types
     C.logA(item, 'restored', ctx.user.id, now());
   } else item = C.cleanEntity(S, coll, item, { trusted: true });
   tx(() => { q.del.run('trash', tr.id); putEnt(coll, item); });
