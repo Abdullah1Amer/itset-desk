@@ -32,6 +32,8 @@
     devSince: ['في عهدتك من', 'In your custody since'], devSerial: ['السيريال', 'Serial'], devHelp: ['لو فيه جهاز ناقص أو مش معاك، افتح طلب للـ IT.', 'If a device is missing or not with you, open a request to IT.'],
     as_stock: ['في المخزن', 'In stock'], as_active: ['قيد الاستخدام', 'In use'], as_repair: ['في الصيانة', 'In repair'],
     e_csat_done: ['التقييم اتسجل قبل كده ومش ممكن يتغير', 'This request was already rated; the rating cannot be changed'],
+    help: ['حلول سريعة', 'Self-help articles'], helpSub: ['جرّب الحلول دي قبل ما تفتح طلب', 'Try these fixes before opening a request'],
+    helpSearch: ['ابحث في الحلول…', 'Search articles…'], noHelp: ['مفيش مقالات منشورة دلوقتي', 'No articles are published yet'], noHelpMatch: ['مفيش نتايج', 'No matching articles'],
     myReqs: ['طلباتي', 'My requests'], noReqs: ['مفيش طلبات على البريد ده', 'No requests for this email'], signOut: ['خروج', 'Sign out'],
     e_v_email: ['اكتب بريد إلكتروني صحيح', 'Enter a valid email address'], e_v_title: ['العنوان قصير — 5 حروف على الأقل', 'The summary is too short — at least 5 characters'],
     e_v_req: ['اكتب اسمك', 'Enter your name'], e_v_cat: ['اختار التصنيف', 'Choose a category'], e_v_req2: ['في بيانات ناقصة أو غير صحيحة', 'Some fields are missing or invalid'],
@@ -62,7 +64,7 @@
     return j;
   }
 
-  const P = { cfg: null, view: 'home', ticket: null, token: null, mine: null, devices: null, codeFor: '', created: null, files: [] };
+  const P = { cfg: null, view: 'home', ticket: null, token: null, mine: null, devices: null, kb: null, codeFor: '', created: null, files: [] };
   function applyLang() { const r = document.documentElement; r.lang = lang; r.dir = lang === 'ar' ? 'rtl' : 'ltr'; document.title = t('portal') + ' — ' + t('brand'); }
   function setLang(l) { lang = l; remember('itset.portal.lang', l); render(); }
 
@@ -100,7 +102,19 @@
       ${P.codeFor ? `<div class="note">${t('codeSent')}</div><label class="field"><span>${t('code')}</span><input type="text" id="oCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" dir="ltr" class="mono"></label>` : ''}
       <small class="ferr" id="oErr" role="alert"></small>
       <button class="btn ${P.codeFor ? 'pri' : ''}" type="submit" style="justify-content:center">${P.codeFor ? t('signIn') : t('sendCode')}</button></form>`;
-    return `<div class="p-grid">${form}<div class="p-side">${trackBox}</div></div>`;
+    return `<div class="p-grid">${form}<div class="p-side">${vHelp()}${trackBox}</div></div>`;
+  }
+  /* DESK-GAP-004 — portal knowledge base: the server only ever sends audience='portal' articles */
+  function vHelp() {
+    const k = P.kb; if (k && !k.articles.length) return '';
+    return `<div class="card p-card"><h2>${t('help')}</h2><p class="muted">${t('helpSub')}</p>${!k ? `<div class="muted">…</div>` : `
+      <input type="search" id="kbQ" placeholder="${t('helpSearch')}" aria-label="${t('helpSearch')}">
+      <div class="kbs" id="kbList">${k.articles.map(x => `<details class="p-kb" data-hay="${esc((x.title + ' ' + x.body).toLowerCase())}"><summary>${esc(x.title)}${x.category ? ` <span class="muted">· ${esc(x.category[lang] || x.category.name)}</span>` : ''}</summary><div class="tx">${esc(x.body)}</div></details>`).join('')}</div>
+      <div class="muted" id="kbNone" hidden>${t('noHelpMatch')}</div>`}</div>`;
+  }
+  async function loadKb() {
+    try { P.kb = await api('GET', '/api/portal/kb'); } catch (e) { P.kb = { articles: [] }; }
+    if (P.view === 'home') render();
   }
   function vDevices() {
     const d = P.devices;
@@ -204,6 +218,11 @@
       } catch (err) { er.textContent = errMsg(err.code); }
     }
   });
+  document.addEventListener('input', e => {
+    if (e.target.id !== 'kbQ') return; const q = e.target.value.trim().toLowerCase(); let n = 0;
+    document.querySelectorAll('#kbList .p-kb').forEach(d => { const hit = !q || d.dataset.hay.includes(q); d.hidden = !hit; if (hit) n++; });
+    $('#kbNone').hidden = n > 0;
+  });
   document.addEventListener('change', e => { if (e.target.id === 'rFile' && e.target.files.length) $('#replyForm').requestSubmit(); });
   window.addEventListener('popstate', () => { const tok = new URLSearchParams(location.search).get('t'); if (tok) loadTicket(tok); else { P.view = 'home'; render(); } });
 
@@ -212,5 +231,6 @@
     try { P.cfg = await api('GET', '/api/portal/config'); } catch (e) { P.cfg = { enabled: false, categories: [], domains: [], limits: { maxUploadMB: 15 } }; }
     const tok = new URLSearchParams(location.search).get('t');
     if (tok && P.cfg.enabled) loadTicket(tok); else { render(); if (P.cfg.signedIn) loadMine(); }
+    if (P.cfg.enabled) loadKb(); // DESK-GAP-004
   })();
 })();

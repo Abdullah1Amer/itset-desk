@@ -221,6 +221,14 @@ test('DESK-BUG-002: CSAT cannot be overwritten', () => {
   assert.equal(x.csat, 5);
 });
 
+test('DESK-GAP-004: knowledge-base audience defaults to internal; only the exact value "portal" publishes', () => {
+  const s = C.defaults('en');
+  const mk = audience => C.cleanEntity(s, 'kb', { id: 'kbx', title: 'Reset VPN', body: 'Steps', audience }, {}).audience;
+  assert.equal(mk(undefined), 'internal', 'no field → internal');
+  assert.equal(mk('portal'), 'portal');
+  for (const v of ['PORTAL', 'public', 'all', true, 1, ' portal']) assert.equal(mk(v), 'internal', 'fail closed for ' + JSON.stringify(v));
+});
+
 test('DESK-GAP-005: typed ticket links are stored on both sides with the inverse type', () => {
   assert.ok(Array.isArray(C.LINK_TYPES) && C.LINK_TYPES.includes('duplicate_of') && C.LINK_TYPES.includes('caused_by'), 'core exposes link types');
   const mk = (id, key) => ({ id, key, status: 'progress', links: [], activity: [] });

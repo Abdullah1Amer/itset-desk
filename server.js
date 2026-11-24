@@ -886,6 +886,17 @@ route('GET', '/api/portal/assets', 'none', (ctx) => {
   return { email, assets };
 });
 
+/* DESK-GAP-004 — self-service knowledge base: only articles an agent marked audience='portal'.
+   Internal articles (the default, and anything without the field, e.g. older data or imports) never leave the server.
+   No sign-in needed (same as opening a request); only safe fields are returned. */
+const portalCat = id => { const c = S.categories.find(z => z.id === id); return c ? { name: c.name, ar: C.demoText(c.name, 'ar'), en: C.demoText(c.name, 'en') } : null; };
+route('GET', '/api/portal/kb', 'none', (ctx) => {
+  portalGuard(); rateGuard('pkb-ip:' + clientIp(ctx.req), 300, 3600e3);
+  const articles = S.kb.filter(k => k && k.audience === 'portal').sort((a, b) => String(a.title).localeCompare(String(b.title))).slice(0, 200)
+    .map(k => ({ id: k.id, title: k.title, body: k.body, category: portalCat(k.category) }));
+  return { articles };
+});
+
 /* ======================= audit log (admin) ======================= */
 route('GET', '/api/audit', 'admin', (ctx) => {
   const sp = ctx.url.searchParams; const lim = Math.min(500, Math.max(1, +(sp.get('limit') || 200)));

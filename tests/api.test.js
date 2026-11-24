@@ -533,6 +533,28 @@ test('DESK-GAP-001: portal "my devices" shows only assets in the signed-in emplo
   assert.equal((await pc.get('/api/portal/assets')).status, 404, 'off when the portal is off');
 });
 
+/* ---- regression test for DESK-GAP-004 (branch claude/desk-gap-004-portal-kb) ---- */
+test('DESK-GAP-004: portal knowledge base shows only articles published to the portal, with safe fields', async () => {
+  const anon = client();
+  await admin.put('/api/settings', { settings: { portal: { enabled: false, allowedDomains: [] } } });
+  assert.equal((await anon.get('/api/portal/kb')).status, 404, 'off when the portal is off');
+  await admin.put('/api/settings', { settings: { portal: { enabled: true, allowedDomains: [] } } });
+  const catId = (await admin.get('/api/bootstrap')).body.state.categories[0].id;
+  const put = (id, o) => admin.put('/api/c/kb/' + id, Object.assign({ title: 'Article ' + id, body: 'Body ' + id, category: catId, tags: 'secret-tag' }, o));
+  assert.equal((await put('kbpub1', { audience: 'portal', body: 'PUBLIC-STEPS' })).body.item.audience, 'portal');
+  assert.equal((await put('kbint1', { audience: 'internal', body: 'INTERNAL-ONLY-RUNBOOK' })).body.item.audience, 'internal');
+  assert.equal((await put('kbdef1', { body: 'DEFAULT-NO-FIELD' })).body.item.audience, 'internal', 'default is internal');
+  const r = await anon.get('/api/portal/kb?audience=internal&all=1');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.articles.map(a => a.id), ['kbpub1'], 'only the portal article (query parameters ignored)');
+  assert.deepEqual(Object.keys(r.body.articles[0]).sort(), ['body', 'category', 'id', 'title'], 'no tags or internal fields');
+  const txt = JSON.stringify(r.body);
+  assert.ok(!txt.includes('INTERNAL-ONLY-RUNBOOK') && !txt.includes('DEFAULT-NO-FIELD') && !txt.includes('secret-tag'));
+  assert.equal((await put('kbpub1', { audience: 'internal', body: 'PUBLIC-STEPS' })).status, 200);
+  assert.equal((await anon.get('/api/portal/kb')).body.articles.length, 0, 'unpublishing hides it immediately');
+  await admin.put('/api/settings', { settings: { portal: { enabled: false, allowedDomains: [] } } });
+});
+
 /* ---- regression test for DESK-GAP-005 (branch claude/desk-gap-005-typed-links) ---- */
 test('DESK-GAP-005: typed link through the API is saved on both tickets with the inverse type', async () => {
   const mk = async title => (await agent.post('/api/tickets', { title, type: 'incident', categoryId: 'c5', impact: 2, urgency: 2, requester: { name: 'Link Test' } })).body.ticket;
