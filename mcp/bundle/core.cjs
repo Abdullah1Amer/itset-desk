@@ -778,7 +778,30 @@
     walk(obj, 0, ''); return obj;
   }
 
-  const api = { MIN, HR, DAY, LINK_TYPES, LINK_INV, linkType, pruneLinks, demoMap, demoText, localize, STATUSES, TYPES, KINDS, ASSET_STATUSES, ASSET_CRIT, DISPOSAL_METHODS, PM_TYPES, MATRIX, EMAIL_RE, ID_RE,
+  /* ---------- CSV export (assets register) ---------- */
+  /** One CSV cell: always quoted, inner quotes doubled. A leading = + - @ TAB or CR is neutralised with a ' so a spreadsheet
+   *  shows the text instead of running it as a formula (CSV / formula injection). Same rule as the tickets export in app.js. */
+  function csvCell(v) { let s = String(v ?? ''); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; }
+  /** Rows → CSV text: UTF-8 BOM (so Excel shows Arabic correctly) and CRLF line ends. */
+  function toCsv(rows) { return '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n'); }
+  const ASSET_CSV_HEAD = ['Tag', 'Name', 'Type', 'Status', 'Criticality', 'Owner', 'Owner email', 'Location', 'Serial', 'Vendor',
+    'Purchase date', 'Warranty end', 'Warranty', 'Tickets', 'Open tickets', 'Disposal method', 'Disposal date', 'Data wiped', 'Notes'];
+  /**
+   * Assets register as CSV. `list` = the assets to export (e.g. the filtered view; default all), `today` = 'YYYY-MM-DD' for the warranty column.
+   * Owner is the linked requester (name + e-mail) or the free-text user field. Every cell goes through csvCell().
+   */
+  function assetsCsv(S, list, today) {
+    const A = Array.isArray(list) ? list : (S.assets || []), R = S.requesters || [], T = S.tickets || [];
+    const rows = A.map(a => {
+      const r = a.requesterId ? R.find(q => q.id === a.requesterId) : null, ts = T.filter(x => x.assetId === a.id), d = a.disposal || null;
+      return [a.tag, a.name, a.type, a.status, a.criticality, r ? r.name : (a.user || ''), r ? r.email : '', a.location, a.serial, a.vendor,
+        a.purchaseDate, a.warrantyEnd, today ? warranty(a, today) : '', ts.length, ts.filter(isOpen).length,
+        d ? d.method : '', d ? d.date : '', d ? (d.dataWiped ? 'yes' : 'no') : '', a.notes];
+    });
+    return toCsv([ASSET_CSV_HEAD, ...rows]);
+  }
+
+  const api = { MIN, HR, DAY, LINK_TYPES, LINK_INV, linkType, pruneLinks, demoMap, demoText, localize, csvCell, toCsv, assetsCsv, ASSET_CSV_HEAD, STATUSES, TYPES, KINDS, ASSET_STATUSES, ASSET_CRIT, DISPOSAL_METHODS, PM_TYPES, MATRIX, EMAIL_RE, ID_RE,
     dateStr, addDays, daysBetween, todayIn, planTargets, runMaintenance, assetStats, warranty, cleanHistory,
     uid, prio, isOpen, pol, resDue, respDue, sla, resp, logA, setStatus, setAssignee, openLoad, autoPick,
     cleanTicketData, newTicket, applyOp, autoClose, cleanEntity, inUse, cleanSettings, cleanSla, cleanCalendar, cleanPortal, defaults, seed, err,
