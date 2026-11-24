@@ -792,9 +792,21 @@ route('POST', '/api/portal/tickets', 'none', (ctx) => {
   const type = b.type === 'request' ? 'request' : 'incident';
   const impact = [1, 2, 3].includes(+b.impact) ? +b.impact : 3, urgency = [1, 2, 3].includes(+b.urgency) ? +b.urgency : 2;
   const data = { title: b.title, type, categoryId: b.categoryId, impact, urgency, desc: b.desc, tags: ['portal'], requester: { name: b.name, email, dept: b.dept } };
+  /* DESK-GAP-003: the requester may link ONE device from their own custody, by tag. Never trusted from the client:
+     needs a portal session (one-time code), the form e-mail must be the session e-mail, and the tag must be in that
+     person's custody list (same rule as GET /api/portal/assets). Raw asset ids from the client are ignored. */
+  const assetTag = typeof b.assetTag === 'string' ? b.assetTag.trim().slice(0, 60) : '';
+  let asset = null;
+  if (assetTag) {
+    const sess = portalUser(ctx.req); if (!sess) throw httpErr(401, 'auth');
+    if (sess !== email) throw httpErr(403, 'asset_not_yours');
+    asset = custodyAssets(sess).find(a => a.tag === assetTag);
+    if (!asset) throw httpErr(403, 'asset_not_yours');
+    data.assetId = asset.id;
+  }
   const lang = b.lang === 'en' ? 'en' : 'ar';
   const x = createTicket(data, 'requester', { lang, source: 'portal' });
-  audit(ctx, 'portal.ticket_create', x.key, { email }, 'requester');
+  audit(ctx, 'portal.ticket_create', x.key, asset ? { email, asset: asset.tag } : { email }, 'requester');
   mailRequester(x, 'created');
   return { key: x.key, token: x.portalToken, url: (APP_URL || '') + '/portal?t=' + x.portalToken };
 });
@@ -876,12 +888,16 @@ const CUSTODY_HIDDEN = new Set(['disposed', 'retired']);
 function custodySince(a) {
   const h = (a.history || []).filter(e => e.k === 'owner'); return h.length ? h[h.length - 1].at : (a.createdAt || null);
 }
+/** Assets currently in the custody of the requester record(s) with this exact e-mail (shared by DESK-GAP-001 and DESK-GAP-003). */
+function custodyAssets(email) {
+  const ids = new Set(S.requesters.filter(r => r.email && r.email === email).map(r => r.id));
+  return S.assets.filter(a => a.requesterId && ids.has(a.requesterId) && !CUSTODY_HIDDEN.has(a.status))
+    .sort((a, b) => String(a.tag).localeCompare(String(b.tag)));
+}
 route('GET', '/api/portal/assets', 'none', (ctx) => {
   portalGuard(); const email = portalUser(ctx.req); if (!email) throw httpErr(401, 'auth');
   rateGuard('pas:' + email, 60, 3600e3);
-  const ids = new Set(S.requesters.filter(r => r.email && r.email === email).map(r => r.id));
-  const assets = S.assets.filter(a => a.requesterId && ids.has(a.requesterId) && !CUSTODY_HIDDEN.has(a.status))
-    .sort((a, b) => String(a.tag).localeCompare(String(b.tag))).slice(0, 200)
+  const assets = custodyAssets(email).slice(0, 200)
     .map(a => ({ tag: a.tag, name: a.name, type: a.type, serial: a.serial || '', status: a.status, location: a.location || '', since: custodySince(a) }));
   return { email, assets };
 });

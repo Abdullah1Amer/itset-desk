@@ -31,6 +31,10 @@
     myDevices: ['الأجهزة اللي في عهدتي', 'Devices in my custody'], noDevices: ['مفيش أجهزة مسجّلة في عهدتك', 'No devices are recorded in your custody'],
     devSince: ['في عهدتك من', 'In your custody since'], devSerial: ['السيريال', 'Serial'], devHelp: ['لو فيه جهاز ناقص أو مش معاك، افتح طلب للـ IT.', 'If a device is missing or not with you, open a request to IT.'],
     as_stock: ['في المخزن', 'In stock'], as_active: ['قيد الاستخدام', 'In use'], as_repair: ['في الصيانة', 'In repair'],
+    device: ['الجهاز المتأثر (اختياري)', 'Affected device (optional)'], noDevice: ['— مش متعلق بجهاز معيّن —', '— Not about a specific device —'],
+    deviceHint: ['بتظهر هنا الأجهزة اللي في عهدتك بس', 'Only devices in your custody are listed'],
+    e_asset_not_yours: ['الجهاز ده مش في عهدتك، أو البريد مختلف عن البريد اللي داخل بيه', 'This device is not in your custody, or the email differs from the one you signed in with'],
+    e_auth: ['ادخل بكود الإيميل الأول', 'Please sign in with the email code first'],
     e_csat_done: ['التقييم اتسجل قبل كده ومش ممكن يتغير', 'This request was already rated; the rating cannot be changed'],
     myReqs: ['طلباتي', 'My requests'], noReqs: ['مفيش طلبات على البريد ده', 'No requests for this email'], signOut: ['خروج', 'Sign out'],
     e_v_email: ['اكتب بريد إلكتروني صحيح', 'Enter a valid email address'], e_v_title: ['العنوان قصير — 5 حروف على الأقل', 'The summary is too short — at least 5 characters'],
@@ -80,10 +84,11 @@
     const doms = c.domains && c.domains.length ? `<small class="muted">${t('allowed').replace('{d}', c.domains.join(', '))}</small>` : '';
     const form = `<form class="card p-card props" id="reqForm" novalidate><div><h1>${t('newReq')}</h1><p class="muted">${t('newReqSub')}</p></div>
       <div class="grid2"><label class="field"><span>${t('name')} *</span><input type="text" id="pName" maxlength="80" autocomplete="name" value="${esc(remember('itset.portal.name'))}"></label>
-      <label class="field"><span>${t('email')} *</span><input type="email" id="pEmail" maxlength="120" autocomplete="email" dir="ltr" value="${esc(remember('itset.portal.email'))}">${doms}</label></div>
+      <label class="field"><span>${t('email')} *</span><input type="email" id="pEmail" maxlength="120" autocomplete="email" dir="ltr" value="${esc(c.signedIn || remember('itset.portal.email'))}">${doms}</label></div>
       <div class="grid2"><label class="field"><span>${t('dept')}</span><input type="text" id="pDept" maxlength="60" value="${esc(remember('itset.portal.dept'))}"></label>
       <label class="field"><span>${t('kind')}</span>${sel('pType', [['incident', t('k_incident')], ['request', t('k_request')]], 'incident')}</label></div>
       <label class="field"><span>${t('category')} *</span>${sel('pCat', [['', '—']].concat(c.categories.map(x => [x.id, x[lang] || x.name])), '')}</label>
+      ${vDevicePick()}
       <label class="field"><span>${t('title')} *</span><input type="text" id="pTitle" maxlength="160" placeholder="${t('titlePh')}"></label>
       <label class="field"><span>${t('desc')}</span><textarea id="pDesc" rows="5" maxlength="5000" placeholder="${t('descPh')}"></textarea></label>
       <div class="grid2"><label class="field"><span>${t('impact')}</span>${sel('pImp', [[3, t('i3')], [2, t('i2')], [1, t('i1')]], 3)}</label>
@@ -101,6 +106,11 @@
       <small class="ferr" id="oErr" role="alert"></small>
       <button class="btn ${P.codeFor ? 'pri' : ''}" type="submit" style="justify-content:center">${P.codeFor ? t('signIn') : t('sendCode')}</button></form>`;
     return `<div class="p-grid">${form}<div class="p-side">${trackBox}</div></div>`;
+  }
+  /* DESK-GAP-003: pick one of MY devices (signed-in only; the server re-checks custody) */
+  function vDevicePick() {
+    const d = P.cfg.signedIn && P.devices && P.devices.assets; if (!d || !d.length) return '';
+    return `<label class="field"><span>${t('device')}</span>${sel('pAsset', [['', t('noDevice')]].concat(d.map(x => [x.tag, x.tag + ' — ' + x.name])), '')}<small class="muted">${t('deviceHint')}</small></label>`;
   }
   function vDevices() {
     const d = P.devices;
@@ -175,6 +185,7 @@
       const er = $('#pErr'); er.textContent = '';
       const d = { name: $('#pName').value.trim(), email: $('#pEmail').value.trim(), dept: $('#pDept').value.trim(), type: $('#pType').value, categoryId: $('#pCat').value,
         title: $('#pTitle').value.trim(), desc: $('#pDesc').value.trim(), impact: +$('#pImp').value, urgency: +$('#pUrg').value, website: $('#pWebsite').value, lang };
+      const pa = $('#pAsset'); if (pa && pa.value) d.assetTag = pa.value; // DESK-GAP-003
       if (!d.name) return er.textContent = t('e_v_req');
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(d.email)) return er.textContent = t('e_v_email');
       if (!d.categoryId) return er.textContent = t('e_v_cat');
